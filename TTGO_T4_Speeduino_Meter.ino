@@ -73,7 +73,7 @@ TFT_eSprite afrBar = TFT_eSprite(&tft);       // sprite for the AFR bar
 
 // **************************** Function Prototypes *******************
 void showWarmup(int freq = 200);
-void showAFR(int freq = 200);
+void showAFR(int freq = 250);
 void showEGO(int freq = 200);
 void showLoops(int freq = 250);
 void showGammaE(int freq = 200);
@@ -141,6 +141,7 @@ void setup() {
 
 
   //**************** Initialize Sprites ****************
+  // also set defaults for sprites
   // Initialize sprite for numeric display
   dispNum.setTextFont(8);
   dispNum.createSprite(320, 140);
@@ -164,8 +165,8 @@ void setup() {
 
   // sprite to show update frequency at right of screen
   dispFreq.setTextFont(4);
-  dispFreq.createSprite(80,60);
-  dispFreq.setTextPadding(80);
+  dispFreq.createSprite(70,40);
+  dispFreq.setTextPadding(70);
   dispFreq.setTextColor(TFT_WHITE,TFT_TRANSPARENT);
   dispFreq.setTextDatum(TL_DATUM);    // text datum is at top left 
 
