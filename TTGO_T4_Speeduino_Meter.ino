@@ -126,6 +126,11 @@ void setup() {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
+  // turn test mode on to  use simulated data instead of actual
+  SData.testModeOn();
+  //SData.testModeOff();
+  SData.setFakeAFR(125,175);
+  
   // initialize display
   tft.init();
   tft.setRotation(1);         // landscape

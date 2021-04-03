@@ -95,6 +95,7 @@ void showAFR(int freq) {
 
   // get actual and target afr, use SpeedData library (instance is SData)
   actualAFR = SData.getActualAFR(freq);
+  Serial.print("Actual AFR:");Serial.println(actualAFR);
   targetAFR = SData.getTargetAFR(freq);
 
   // Set colours for Actual AFR depending on value.
@@ -145,11 +146,11 @@ void showAFR(int freq) {
     lastAfrRead = millis();
   }
   // average saved afr Var readings
-  for (int i = 0;i < afrVarReadings; i++){
+  for (int i = 0; i < afrVarReadings; i++) {
     totalAfrVar += afrVarSamples[i];
   }
   afrVarAvg = totalAfrVar / afrVarReadings;
-  
+
   // calulate position of variance indicator
   indPosition = (afrVarAvg * 100) + 140;
 
@@ -173,12 +174,8 @@ void showEGO(int freq) {
   long EGO = SData.getEGO(freq);
   //dispNum.fillSprite(TFT_BLACK);
 
-  if (EGO > 115) {
-    EGO = 115;
-  }
-  else if (EGO < 85) {
-    EGO = 85;
-  }
+  EGO = constrain(EGO, 85,115);
+  
   // set display colors
   if (EGO > 105) {
     dispNum.fillSprite(TFT_BLUE);
@@ -336,4 +333,66 @@ void showDescription(String desc) {
 //  plotNeedle(0, 0); // Put meter needle at 0
 //}
 //
+//// #########################################################################
+//// Update needle position
+//// This function is blocking while needle moves, time depends on ms_delay
+//// 10ms minimises needle flicker if text is drawn within needle sweep area
+//// Smaller values OK if text not in sweep area, zero for instant movement but
+//// does not look realistic... (note: 100 increments for full scale deflection)
+//// #########################################################################
+//void plotNeedle(int value, byte ms_delay)
+//{
+//  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+//  char buf[8]; dtostrf(value, 4, 0, buf);
+//  //tft.drawRightString(buf, M_SIZE*40, M_SIZE*(119 - 20), 6);
+//
+//  if (value < -10) value = -10; // Limit value to emulate needle end stops
+//  if (value > 110) value = 110;
+//
+//  // Move the needle until new value reached
+//  while (!(value == old_analog)) {
+//    if (old_analog < value) old_analog++;
+//    else old_analog--;
+//
+//    if (ms_delay == 0) old_analog = value; // Update immediately if delay is 0
+//
+//    float sdeg = map(old_analog, -10, 110, -150, -30); // Map value to angle
+//    // Calcualte tip of needle coords
+//    float sx = cos(sdeg * 0.0174532925);
+//    float sy = sin(sdeg * 0.0174532925);
+//
+//    // Calculate x delta of needle start (does not start at pivot point)
+//    float tx = tan((sdeg + 90) * 0.0174532925);
+//
+//    // Erase old needle image
+//    tft.drawLine(M_SIZE * (120 + 20 * ltx - 2), M_SIZE * (140 - 20), osx - 2, osy, TFT_BLACK);
+//    tft.drawLine(M_SIZE * (120 + 20 * ltx - 1), M_SIZE * (140 - 20), osx - 1, osy, TFT_BLACK);
+//    tft.drawLine(M_SIZE * (120 + 20 * ltx), M_SIZE * (140 - 20), osx, osy, TFT_BLACK);
+//    tft.drawLine(M_SIZE * (120 + 20 * ltx + 1), M_SIZE * (140 - 20), osx + 1, osy, TFT_BLACK);
+//    tft.drawLine(M_SIZE * (120 + 20 * ltx + 2), M_SIZE * (140 - 20), osx + 2, osy, TFT_BLACK);
+//
+//    // Re-plot text under needle
+//    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+//    tft.setTextPadding(80);
+//    tft.drawCentreString(buf, M_SIZE * 120, M_SIZE * 70, 6); // // Comment out to avoid font 4
+//
+//    // Store new needle end coords for next erase
+//    ltx = tx;
+//    osx = M_SIZE * (sx * 98 + 120);
+//    osy = M_SIZE * (sy * 98 + 140);
+//
+//    // Draw the needle in the new postion, magenta makes needle a bit bolder
+//    // draws 3 lines to thicken needle
+//    tft.drawLine(M_SIZE * (120 + 20 * ltx - 2), M_SIZE * (140 - 20), osx - 2, osy, TFT_YELLOW);
+//    tft.drawLine(M_SIZE * (120 + 20 * ltx - 1), M_SIZE * (140 - 20), osx - 1, osy, TFT_YELLOW);
+//    tft.drawLine(M_SIZE * (120 + 20 * ltx), M_SIZE * (140 - 20), osx, osy, TFT_MAGENTA);
+//    tft.drawLine(M_SIZE * (120 + 20 * ltx + 1), M_SIZE * (140 - 20), osx + 1, osy, TFT_YELLOW);
+//    tft.drawLine(M_SIZE * (120 + 20 * ltx + 2), M_SIZE * (140 - 20), osx + 2, osy, TFT_YELLOW);
+//
+//    // Slow needle down slightly as it approaches new postion
+//    if (abs(old_analog - value) < 10) ms_delay += ms_delay / 5;
+//
+//    // Wait before next update
+//    delay(ms_delay);
+//  }
 //}
