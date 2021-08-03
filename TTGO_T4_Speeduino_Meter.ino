@@ -1,7 +1,7 @@
 /*! @brief Air Fuel Ratio (AFR) Gauge
-   AFR monitor using TTGO ESP 32 module with 240 x 135 TFT full colour display
-   Use ESP 32 Dev Module board definition.
-   Uses OTA updates.
+   AFR monitor using TTGO ESP 32 module with 320  x 240 TFT full colour display
+   Use  "ESP32 Arduino >> ESP 32 Dev Module " board definition.
+   for the TFT_eSPI library (display driver) make sure that User_Setup.h has #define ILI9341_DRIVER uncommented.
 */
 
 #include <TFT_eSPI.h>
@@ -20,9 +20,11 @@
 */
 const uint8_t TOP_BUTTON_PIN = 38;       //!< on board button above the USB-C port
 const uint8_t BOTTOM_BUTTON_PIN = 39;   //!< on board button below the USB-C port
+const uint8_t MIDDLE_BUTTON_PIN = 37;
 
 EasyButton topButton(TOP_BUTTON_PIN);
 EasyButton bottomButton(BOTTOM_BUTTON_PIN);
+EasyButton middleButton(MIDDLE_BUTTON_PIN);
 
 // SpeedData object to get data from the speeduino.  Using Serial2 (defined in setup)
 // use reference operator ("&")!
@@ -33,29 +35,34 @@ char* ssid = SECRET_SSID;
 char* password = SECRET_PWD;
 
 // tft display buffer
-uint16_t* tft_buffer = (uint16_t*) malloc( 34000 );
+uint16_t* tft_buffer = (uint16_t*) malloc( 50000 );
 bool      buffer_loaded = false;
+const float M_SIZE = 1.33;  // analog meter size
 
 // Mode constants, set what will be displayed on the gauge
-byte g_Mode = 0;
-const byte MODE_AFR = 0;        // display AFR & variance from targeyt
-const byte MODE_EGO = 1;        // display EGO correction
-const byte MODE_LOOPS = 2;      // loops per second
-const byte MODE_WARMUP = 3;     // warmup enrichment
-const byte MODE_GAMMA = 4;      // total enrichment (GammaE)
-const byte MODE_MAP = 5;      // acceleration enrichment
-const byte MODE_ACCEL = 6;        // manifold air pressure
+byte g_Mode = 0;                // current mode
+const int NUM_MODES = 7;        // number of modes
 
-const int NUM_MODES = 5;
+const byte MODE_MULTI = 0;      // multi analog gauge
+const byte MODE_AFR = 1;        // display AFR & variance from targeyt
+const byte MODE_WARMUP = 2;     // warmup enrichment
+const byte MODE_GAMMA = 3;      // total enrichment (GammaE)
+const byte MODE_MAP = 4;       // manifold air pressure
+const byte MODE_ACCEL = 5;      // acceleration enrichment
+const byte MODE_RPM = 6;      // multi display
 
 //update frequencies
 int warmupFreq = 200;
+int multiFreq = 500;
 int egoFreq = 200;
-int loopsFreq = 250;
+int rpmFreq = 250;
 int afrFreq = 250;
 int gammaFreq = 250;
 int accelFreq = 250;
 int mapFreq = 250;
+
+// global to hold status - test mode or not
+boolean testMode = true;
 
 // Serial2 pins
 #define sTX 21    // Serial2 transmit (out), pin J4 on Speeduino connector (SDA on TTGO_T4)
@@ -77,7 +84,10 @@ void showAFR(int freq = 250);
 void showEGO(int freq = 200);
 void showLoops(int freq = 250);
 void showGammaE(int freq = 200);
-
+void showMAP(int freq = 200);
+void showMulti(int freq = 200);
+void plotNeedle(int value, byte ms_delay = 10, float afrVar = 0, float afr = 14.0,
+                int bottomLeft = 50, int bottomCenter = 50, int bottomRight = 50, float afrvarmax = 0, float afrvarmin = 0 );
 //****************************** Setup *******************************
 void setup() {
   Serial.begin(115200);
@@ -126,11 +136,6 @@ void setup() {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  // turn test mode on to  use simulated data instead of actual
-  SData.testModeOn();
-  //SData.testModeOff();
-  SData.setFakeAFR(125,175);
-  
   // initialize display
   tft.init();
   tft.setRotation(1);         // landscape
@@ -141,8 +146,10 @@ void setup() {
   // Initialize buttons
   topButton.begin();
   bottomButton.begin();
+  middleButton.begin();
   topButton.onPressed(handleTopButton);
   bottomButton.onPressed(handleBottomButton);
+  middleButton.onPressed(handleMiddleButton);
 
 
   //**************** Initialize Sprites ****************
@@ -170,15 +177,28 @@ void setup() {
 
   // sprite to show update frequency at right of screen
   dispFreq.setTextFont(4);
-  dispFreq.createSprite(70,40);
+  dispFreq.createSprite(70, 40);
   dispFreq.setTextPadding(70);
-  dispFreq.setTextColor(TFT_WHITE,TFT_TRANSPARENT);
-  dispFreq.setTextDatum(TL_DATUM);    // text datum is at top left 
+  dispFreq.setTextColor(TFT_WHITE, TFT_TRANSPARENT);
+  dispFreq.setTextDatum(TL_DATUM);    // text datum is at top left
 
   // sprite to show AFR bar
-  afrBar.createSprite(320,100);
+  afrBar.createSprite(320, 100);
   afrBar.fillRect(0, 0, 160, 100, TFT_RED);
   afrBar.fillRect(160, 0, 160, 100, TFT_BLUE);
+
+  // start with it in regular (not test) mode
+  testMode = false;
+
+  // delay for 20 seconds to wait for speeduino to get going
+  tft.setTextFont(4);
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(TFT_WHITE);
+  tft.drawString("Waiting for Speeduino",160,120);
+  delay(20000);
+  
+  //default gauge is the multi meter, we have to draw this once.
+  drawAnalogMeter();
 
 }
 
@@ -187,4 +207,6 @@ void loop() {
   updateDisplay();
   topButton.read();
   bottomButton.read();
+  middleButton.read();
+  
 }
